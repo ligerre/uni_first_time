@@ -19,6 +19,18 @@ def householder_reflection(A):
         A[:, k+1:] -= 2 * np.outer(np.dot(A[:, k+1:], v), v)
         H[k+1:, :] -= 2 * np.outer(v, np.dot(v, H[k+1:, :]))
     return A, H
+
+def hessenberg_symmetric(A):
+    H = np.copy(A)
+    H = H.astype('float64')
+    Q = np.eye(A.shape[0])
+    for k in range(H.shape[0]-2):
+        x = H[k+1:, k]
+        v = vhouse(x)
+        v = v / np.linalg.norm(v)
+        H[k+1:, k:] -= 2 * np.outer(v, np.dot(v, H[k+1:, k:]))
+        H[:, k+1:] -= 2 * np.outer(np.dot(H[:, k+1:], v), v)
+    return H,Q
 def givcos(x,y):
     if y==0:
         return 1,0
@@ -47,34 +59,29 @@ def qr_hessenberg(H):
             R[j:j+2,:] = G @ R[j:j+2,:]
             Q[:,j:j+2] = Q[:,j:j+2] @ G.T
     return Q, R
-def QR(A,niter,mu):
-    B = np.copy(A)
-    T,_ = householder_reflection(B)
-    eigval=[]
-    shift = mu*np.eye(A.shape[0])
+def QR(A,niter):
+    T,_ = householder_reflection(A)
     for i in range(niter):
-        Q,R = qr_hessenberg(T-shift)
-        T = R@Q+shift
-        eigval.append(np.diagonal(T))
-    return T,eigval
+        Q,R = qr_hessenberg(T)
+        T = R@Q
+        if niter <=10:
+            print('iteration: '+str(i+1),'\n',T)
+    return T
 
-def QRshift(A,niter,toll=10**(-9)):
-    B = np.copy(A)
-    T,_ = householder_reflection(B)
-    eigval=[]
-    iter = 0
-    for k in range(T.shape[0]-1,1,-1):
-        shift = np.eye(k+1)
-        while abs(T[k,k-1])>toll*(abs(T[k,k])+abs(T[k-1,k-1])):
-            iter+=1
-            if iter > niter:
-                return T,eigval
-            mu = T[k,k]
-            Q,R = qr_hessenberg(T[:k+1,:k+1]-mu*shift)
-            T[:k+1,:k+1] = R@Q + mu*shift
-            eigval.append((np.sort(np.diagonal(T))[::-1]))
-        T[k,k-1]=0
-    return T, eigval
-
-
-            
+A = np.array([[4, 3, 2, 1],
+              [3, 4, 3, 2],
+              [2, 3, 4, 3],
+              [1, 2, 3, 4]]).astype('float64')
+A = np.array([[13,4,3,9],[-1,-8,5,0],[2, 3, 8,1],[6,-2,0,4]]).astype('float64')
+#A = np.array([[2, 1, 0, 0],[1, 2, 1, 0],[0, 1, 2, 1],[0, 0, 1, 2]]).astype('float64')
+print("Original matrix:\n", A)
+B = A.astype('float64')
+H, Q = householder_reflection(B)
+print("Upper Hessenberg matrix:\n", H)
+print("Different \n", (Q.T@H@Q - A).round(9))
+#B = A.astype('float64')
+#B = np.array([[0,1],[-1,0]]).astype('float64')
+B=np.array([[13, 4, 3, 9],[-1, -8, 5, 0],[2, 3, 8, 1],[6, -2, 0, 4]]).astype('float64')
+print("eigenvalues: \n", np.linalg.eigvals(B))
+T = QR(B,10)
+#print("After 10 iteration \n", T)
